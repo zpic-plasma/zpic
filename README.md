@@ -13,7 +13,7 @@ The directory structure is organized as follows:
 
 ## Documentation
 
-The project now has its own dedicated website on GitHub pages. You can find all the documentation at [https://ricardo-fonseca.github.io/zpic/](https://ricardo-fonseca.github.io/zpic/)
+The project now has its own dedicated website on GitHub pages. You can find all the documentation at [https://zpic-plasma.github.io](https://zpic-plasma.github.io)
 
 ## Try ZPIC now on mybinder.org
 
