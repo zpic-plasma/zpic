@@ -19,5 +19,5 @@ The project now has its own dedicated website on GitHub pages. You can find all 
 
 Just launch a JupyterLab session using the button below, and choose any of the available notebooks:
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ricardo-fonseca/zpic/HEAD?urlpath=/lab/tree/python/notebooks/README.ipynb)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zpic-plasma/zpic/HEAD?labpath=python%2Fnotebooks%2FREADME.ipynb)
 
