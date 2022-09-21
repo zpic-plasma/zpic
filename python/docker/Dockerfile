@@ -72,7 +72,7 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
     git && \
     rm -rf /var/lib/apt/lists/* && \
     cd /tmp && \
-    git clone https://github.com/zambzamb/zpic.git && \
+    git clone https://github.com/zpic-plasma/zpic.git && \
     cd zpic/python && \
     make CC='gcc' && \
     mkdir -p /opt/zpic/lib && \
