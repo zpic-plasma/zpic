@@ -3,14 +3,14 @@
 #
 # Create image with:
 #
-# > docker build --force-rm --tag zamb/zpic .
+# > docker build --force-rm --tag zpic/zpic .
 #
 # --force-rm        : Always remove intermediate containers
 # --tag name        : Name for image (in this case zamb/zpic)
 #
 # Run image with:
 #
-# > docker run -p 8888:8888 -t --rm zamb/zpic
+# > docker run -p 8888:8888 -t --rm zpic-plasma/zpic
 #
 # -p host:container : Publish a container's port(s) to the host. In this case
 #                     port 8888 is published as 8888
@@ -20,7 +20,7 @@
 # Then just open a web browser on https://locahost:8888
 #
 # Upload image to Docker hub
-# > docker push zamb/zpic
+# > docker push zpic/zpic
 
 # our base image
 FROM jupyter/base-notebook
@@ -37,30 +37,29 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
 # Remove pyqt and qt pulled in for matplotlib since we're only ever going to
 # use notebook-friendly backends in these images
 RUN conda install --quiet --yes \
-    'ipywidgets=7.6*' \
+    'ipywidgets' \
     'ipympl' \
-    'matplotlib=3.5*' \
-    'cython=0.29*' \
+    'matplotlib' \
+    'cython' \
     'scipy' \
     && \
     conda remove --quiet --yes --force qt pyqt && \
-    conda clean -tipsy && \
+    conda clean -tipy && \
+    npm cache clean --force && \
     # Enable passwordless login to Jupyter
     echo "c.NotebookApp.token = ''" >> /home/$NB_USER/.jupyter/jupyter_notebook_config.py && \
-    # Activate ipywidgets extension in the environment that runs the notebook server
-    jupyter nbextension enable --py widgetsnbextension --sys-prefix && \
-    jupyter labextension install @jupyter-widgets/jupyterlab-manager jupyter-matplotlib && \
-    jupyter labextension enable @jupyter-widgets/jupyterlab-manager jupyter-matplotlib && \
-    npm cache clean --force && \
     rm -rf $CONDA_DIR/share/jupyter/lab/staging && \
     rm -rf /home/$NB_USER/.cache/yarn && \
     rm -rf /home/$NB_USER/.node-gyp && \
-    fix-permissions $CONDA_DIR && \
     fix-permissions /home/$NB_USER
 
 # Import matplotlib the first time to build the font cache.
+# Activate ipywidgets extension in the environment that runs the notebook server
 ENV XDG_CACHE_HOME /home/$NB_USER/.cache/
 RUN MPLBACKEND=Agg python -c "import matplotlib.pyplot" && \
+    jupyter nbextension enable --py widgetsnbextension --sys-prefix && \
+    jupyter labextension install @jupyter-widgets/jupyterlab-manager jupyter-matplotlib && \
+    jupyter labextension enable @jupyter-widgets/jupyterlab-manager jupyter-matplotlib && \
     fix-permissions /home/$NB_USER
 
 # Get ZPIC python modules and install them
