@@ -42,5 +42,6 @@ __pycache__/
 /python/source/em2d.c
 /python/source/em2ds.c
 /python/source/es1d.c
+/python/source/em2d_rr.c
 
 /zpic.code-workspace
