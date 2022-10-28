@@ -1134,6 +1134,10 @@ void spec_advance( t_species* spec, t_emf* emf, t_current* current )
         int di, dj;
         float dx, dy; 
 
+        // Variables for classical radiation reaction
+        float B2, p2, g, k_damp;
+        float3 Epm, Bpm, um, uc;
+
         // Load particle momenta
         ux = spec -> part[i].ux;
         uy = spec -> part[i].uy;
@@ -1141,7 +1145,22 @@ void spec_advance( t_species* spec, t_emf* emf, t_current* current )
 
         // interpolate fields
         interpolate_fld( emf -> E_part, emf -> B_part, emf -> nrow, &spec -> part[i], &Ep, &Bp );
-        
+
+        // momentum before push
+        um.x = ux;
+        um.y = ux;
+        um.z = ux;
+
+        // B field before push
+        Bpm.x = Bp.x;
+        Bpm.y = Bp.y;
+        Bpm.z = Bp.z;
+
+        // E field before push
+        Epm.x = Ep.x;
+        Epm.y = Ep.y;
+        Epm.z = Ep.z;
+
         // advance u using Boris scheme
         Ep.x *= tem;
         Ep.y *= tem;
@@ -1186,10 +1205,21 @@ void spec_advance( t_species* spec, t_emf* emf, t_current* current )
         uy = uty + Ep.y;
         uz = utz + Ep.z;
         
-        // Store new momenta
-        spec -> part[i].ux = ux;
-        spec -> part[i].uy = uy;
-        spec -> part[i].uz = uz;
+        // time centered momentum
+        uc.x = (um.x + ux) / 2.;
+        uc.y = (um.y + uy) / 2.;
+        uc.z = (um.z + uz) / 2.;
+
+        // radiation reaction damping term
+        B2 = Bpm.x*Bpm.x + Bpm.y*Bpm.y + Bpm.z*Bpm.z;
+        p2 = uc.x*uc.x + uc.y*uc.y + uc.z*uc.z;
+        g = sqrtf(1. + p2);
+        k_damp = 1.1237684e-8*B2*(p2+1.)/g;
+
+        // Store new momenta, and account for radiation reaction
+        spec -> part[i].ux = ux - spec->dt*k_damp*uc.x;
+        spec -> part[i].uy = uy - spec->dt*k_damp*uc.y;
+        spec -> part[i].uz = uz - spec->dt*k_damp*uc.z;
         
         // push particle
         rg = 1.0f / sqrtf(1.0f + ux*ux + uy*uy + uz*uz);
