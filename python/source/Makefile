@@ -1,6 +1,6 @@
 BUILD_LIB = ../lib
 DOC_HTML = ../../documentation/python/api
-DOC_MODS = em1d em2d em1ds em2ds es1d
+DOC_MODS = em1d em2d em1ds em2ds es1d em2drr
 
 all:
 	python3 setup.py build_ext --build-lib=$(BUILD_LIB)
