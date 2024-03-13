@@ -46,6 +46,7 @@ enum density_type {
 	EMPTY,		///< No particles
 	STEP,		///< Step-like profile
 	SLAB,		///< Slab-like profile
+    DIRAC,      ///< Sum of Dirac Deltas (< 1 ppc)
 	CUSTOM		///< Defined from an external function
 };
 
@@ -60,6 +61,18 @@ typedef struct Density {
 	enum density_type type;			///< Density profile type
 	float start;					///< Start position for step, slab and ramp profiles, in simulation units
 	float end;						///< End position for slab and ramp profiles, in simulation units
+
+    // Dirac density profile parameters
+    
+    int dirac_random;              ///< Randomize or not positions of particles
+
+    /// if dirac_random = True
+    int dirac_random_seed;         ///< Random seed used to pick particle positions
+    int dirac_random_np;           ///< Total number of particles 
+
+    /// if dirac_random = False
+    int dirac_dx[2];               ///< Grid points between consecutive particles [x,y] 
+    int dirac_range[2][2];         ///< Grid point range where to place particles [x,y][lower,upper]
 
     // Custom density profile parameters
     

@@ -100,13 +100,18 @@ cdef extern from "../../em2ds/particles.h":
 		float uz
 
 	cdef enum density_type:
-		UNIFORM, EMPTY, STEP, SLAB
+		UNIFORM, EMPTY, STEP, SLAB, DIRAC
 
 	ctypedef struct t_density:
 		float n
 		density_type type
 		float start
 		float end
+		bint dirac_random
+		int dirac_random_np
+		int dirac_random_seed
+		int dirac_dx[2]
+		int dirac_range[2][2]
 
 	ctypedef struct t_species:
 		char name[MAX_SPNAME_LEN]
@@ -208,6 +213,10 @@ cdef extern from "../../em2ds/emf.h":
 		int iter
 		t_fftr2d_cfg *fft_forward
 		t_fftr2d_cfg *fft_backward
+		int solver_type
+
+	cdef enum emf_solver:
+		EMF_SOLVER_PSTD, EMF_SOLVER_PSATD
 
 	cdef enum emf_laser_type:
 		PLANE, GAUSSIAN

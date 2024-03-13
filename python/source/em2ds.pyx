@@ -12,7 +12,9 @@ import numpy as np
 import sys
 
 cdef class Density:
-	"""Density(type='uniform', start=0.0, end=0.0, n=1.0)
+	"""Density(type='uniform', start=0.0, end=0.0, n=1.0,
+			   dirac_random=False, dirac_random_np=1, dirac_random_seed=0,
+			   dirac_dx=[1,1], dirac_range=[[0,-1], [0,-1]])
 	
 	Class representing charge density profiles for particle species
 	initialization
@@ -20,8 +22,8 @@ cdef class Density:
 	Parameters
 	----------
 	type : str, optional
-		Density profile type, one of "uniform", "empty", "step", "slab"
-		or "custom", defaults to "uniform"
+		Density profile type, one of "uniform", "empty", "step", "slab",
+		or "dirac", defaults to "uniform"
 	start : float, optional
 		Position of the plasma start position for "step" or "slab"
 		profiles, defaults to 0.0
@@ -31,6 +33,21 @@ cdef class Density:
 	n : float, optional
 		Reference density to use, multiplies density profile value,
 		defaults to 1.0
+	dirac_random : bool, optional
+		If True, "dirac" will randomly place particles, 
+		defaults to False
+	dirac_random_np : int, optional
+		Number of particles to place for random "dirac",
+		defaults to 1
+	dirac_random_seed: int, optional
+		Seed used to chose particle positions for random "dirac",
+		defaults to 0
+	dirac_dx: list of int, optional
+		Spacing between consecutive particles [nx,ny] for deterministic 
+		"dirac", defaults to [1,1]
+	dirac_range: list of list of ints
+		Grid points range in which to place particles for deterministic 
+		"dirac", defaults to [[0,-1], [0,-1]]
 	
 	See Also
 	--------
@@ -41,11 +58,13 @@ cdef class Density:
 	_density_types = {'uniform':UNIFORM,
 					  'empty':EMPTY,
 	                  'step':STEP,
-	                  'slab':SLAB}
+	                  'slab':SLAB,
+					  'dirac': DIRAC}
 
 	def __cinit__( self, *, str type = 'uniform', float start = 0.0, float end = 0.0,
-		           float n = 1.0):
-
+		           float n = 1.0, 
+				   bint dirac_random = False, int dirac_random_np = 1, int dirac_random_seed = 0,
+				   list dirac_dx = [1,1], list dirac_range = [[0,-1], [0,-1]] ):
 		# Allocates the structure and initializes all elements to 0
 		self._thisptr = <t_density *> calloc(1, sizeof(t_density))
 
@@ -53,6 +72,14 @@ cdef class Density:
 		self._thisptr.n = n
 		self._thisptr.start = start
 		self._thisptr.end = end
+		
+		if type == 'dirac':
+			self._thisptr.dirac_random = dirac_random
+			self._thisptr.dirac_random_np = dirac_random_np
+			self._thisptr.dirac_random_seed = dirac_random_seed
+			self._thisptr.dirac_dx = dirac_dx
+			self._thisptr.dirac_range = dirac_range
+
 
 	def __dealloc__(self):
 		free( self._thisptr )
@@ -67,7 +94,11 @@ cdef class Density:
 		new.type  = self.type
 		new.start = self.start
 		new.end   = self.end
-
+		new._thisptr.dirac_random = self._thisptr.dirac_random
+		new._thisptr.dirac_random_np = self._thisptr.dirac_random_np
+		new._thisptr.dirac_random_seed = self._thisptr.dirac_random_seed
+		new._thisptr.dirac_dx = self._thisptr.dirac_dx
+		new._thisptr.dirac_range = self._thisptr.dirac_range
 		return new
 
 	@property
@@ -91,10 +122,10 @@ cdef class Density:
 
 		Returns
 		-------
-		type : {'uniform', 'empty', 'step', 'slab'}
+		type : {'uniform', 'empty', 'step', 'slab', 'dirac'}
 			Density profile type
 		"""
-		tmp = {UNIFORM:'uniform', EMPTY:'empty', STEP:'step', SLAB:'slab'}
+		tmp = {UNIFORM:'uniform', EMPTY:'empty', STEP:'step', SLAB:'slab', DIRAC: 'dirac'}
 		return tmp[self._thisptr.type]
 
 	@type.setter
@@ -289,7 +320,7 @@ cdef class Species:
 		                   dtype = np.float32 )
 		cdef float [:,:] buf = charge
 		spec_deposit_charge( self._thisptr, &buf[0,0] )
-
+		
 		# Throw away guard cells
 		return charge[ 0 : self._thisptr.nx[1], 0 : self._thisptr.nx[0] ]
 
@@ -429,6 +460,10 @@ cdef class EMF:
 	# Diagnostic types
 	_diag_types = { 'E' : EFLD,	'B' : BFLD }
 
+	# Field solver types
+	_solver_types = {'PSTD' : EMF_SOLVER_PSTD,
+                     'PSATD': EMF_SOLVER_PSATD}
+
 	cdef associate( self, t_emf* ptr ):
 		self._thisptr = ptr
 
@@ -502,6 +537,25 @@ cdef class EMF:
 			Simulation box size
 		"""
 		return self._thisptr.box
+
+	@property
+	def solver_type(self):
+		"""Field solver algorithm used
+
+		Returns
+		-------
+		solver : 'PSTD', 'PSATD'
+			Field solver in use, either 'PSTD' (pseudo-spectral time
+			domain) or 'PSATD' (pseudo-spectral analytical time domain)
+		"""
+		for key, value in self._solver_types.items():
+			if ( value == self._thisptr.solver_type ):
+				return key
+		return 'unknown'
+
+	@solver_type.setter
+	def solver_type( self, str solver ):
+		self._thisptr.solver_type = self._solver_types[solver]
 
 	@property
 	def Ex( self ):
