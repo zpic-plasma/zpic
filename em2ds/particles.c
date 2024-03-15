@@ -88,16 +88,6 @@ float one( float x, void *data ) {
  */
 void spec_set_u( t_species* spec, const int start, const int end )
 {
-
-#if 0
-
-    for (int i = start; i <= end; i++) {
-        spec->part[i].ux = spec -> ufl[0] + spec -> uth[0] * rand_norm(); 
-        spec->part[i].uy = spec -> ufl[1] + spec -> uth[1] * rand_norm(); 
-        spec->part[i].uz = spec -> ufl[2] + spec -> uth[2] * rand_norm(); 
-    }
-
-#else
     // Initialize thermal component
     for (int i = start; i <= end; i++) {
         spec->part[i].ux = spec -> uth[0] * rand_norm(); 
@@ -130,7 +120,7 @@ void spec_set_u( t_species* spec, const int start, const int end )
     // Normalize to the number of particles in each cell to get the
     // average momentum in each cell
     for(int i =0; i< size; i++ ) {
-        const float norm = (npc[ i ] > 0) ? 1.0f/npc[i] : 0;
+        const float norm = (npc[ i ] > 1) ? 1.0f/npc[i] : 0;
 
         net_u[ i ].x *= norm;
         net_u[ i ].y *= norm;
@@ -150,8 +140,6 @@ void spec_set_u( t_species* spec, const int start, const int end )
     free( npc );
     free( net_u );
 
-#endif
-
 }
 
 /**
@@ -164,7 +152,6 @@ void spec_set_u( t_species* spec, const int start, const int end )
  */
 void spec_set_x( t_species* spec, const int range[][2] )
 {
-
     int i, j, k, ip;
     
     float* poscell;
@@ -229,6 +216,77 @@ void spec_set_x( t_species* spec, const int range[][2] )
             }
         }
         break;
+
+    case SPARSE: // Sparse density profile
+
+        if ( spec -> density.sparse_dx <= 0 ) {
+            fprintf(stderr, "(*error*) For sparse density profile set sparse_dx > 0\n");
+            exit(-1);
+        } 
+        
+        // Injection range, in simulation units
+        start = (spec -> density.start > 0) ? spec -> density.start : 0;
+        end = (spec -> density.end < spec -> box[1]) ? spec -> density.end : spec -> box[1];
+
+        float x, y;
+
+        // Inject equally spaced particles
+        for (y = 0; y < spec -> box[1]; y += spec -> density.sparse_dx) {
+            for (x = start; x < end; x += spec -> density.sparse_dx) {
+                // Grid cell index                
+                int ix = x / spec -> dx[0];
+                int iy = y / spec -> dx[1];
+                
+                // Position inside grid cell, cell size units
+                float posx = x / spec -> dx[0] - ix - 0.5;
+                float posy = y / spec -> dx[1] - iy - 0.5;
+
+                spec->part[ip].ix = ix;
+                spec->part[ip].iy = iy;
+                spec->part[ip].x = posx;
+                spec->part[ip].y = posy;
+                ip++;
+            }
+        }
+        break;
+
+    case SPARSE_RANDOM: // Sparse random density profile
+        {
+            // Get current random seed
+            uint32_t m_w_, m_z_;
+            get_rand_seed( &m_w_, &m_z_ );
+
+            // Override random seed with user defined value;
+            set_rand_seed( spec -> density.sparse_random_seed[0], 
+                spec -> density.sparse_random_seed[1] );
+
+            // Inject particles at random positions
+            for (i = 0; i < spec -> density.sparse_random_np; i++) {
+
+                float x = rand_uint32() / 4294967295.0 * spec -> box[0];
+                float y = rand_uint32() / 4294967295.0 * spec -> box[1];
+
+                // Grid cell index                
+                int ix = x / spec -> dx[0];
+                int iy = y / spec -> dx[1];
+                
+                // Position inside grid cell
+                float posx = x / spec -> dx[0] - ix - 0.5;
+                float posy = y / spec -> dx[1] - iy - 0.5;
+
+                spec->part[ip].ix = ix;
+                spec->part[ip].iy = iy;
+                spec->part[ip].x = posx;
+                spec->part[ip].y = posy;
+                ip++;
+            }
+
+            // Reset random seed to original value
+            set_rand_seed( m_w_, m_z_ );
+        }   
+        break;
+        
+
     case CUSTOM:
         {
             
@@ -402,6 +460,21 @@ int spec_np_inj( t_species* spec, const int range[][2] )
         }
         break;
 
+    case SPARSE: // Sparse density profile
+        {
+            float dx = spec -> density.sparse_dx;
+            int npx = ( spec -> density.end - spec -> density.start ) / dx + 1;
+            int npy = spec -> box[1] / dx + 1;
+            np_inj = npx * npy;
+        } 
+        break;
+
+    case SPARSE_RANDOM: // Sparse random density profile
+        {
+            np_inj = spec -> density.sparse_random_np;    
+        }
+        break;
+        
     case CUSTOM: // custom density profile
         {
             // Integrate total charge along x
@@ -477,10 +550,10 @@ void spec_grow_buffer( t_species* spec, const int size ) {
 void spec_inject_particles( t_species* spec, const int range[][2] )
 {
     int start = spec -> np;
-
+    
     // Get maximum number of particles to inject
     int np_inj = spec_np_inj( spec, range );
-
+    
     // Check if buffer is large enough and if not reallocate
     spec_grow_buffer( spec, spec -> np + np_inj );
 
@@ -549,9 +622,6 @@ void spec_new( t_species* spec, char name[], const float m_q, const int ppc[],
         spec -> density = (t_density) { .type = UNIFORM, .n = 1.0 };
     }
 
-    // Density multiplier
-    spec ->q *= fabsf( spec -> density.n );
-
     // Initialize temperature profile
     if ( ufl ) {
         for(i=0; i<3; i++) spec -> ufl[i] = ufl[i];
@@ -575,6 +645,12 @@ void spec_new( t_species* spec, char name[], const float m_q, const int ppc[],
                             {0, nx[1]-1}};
 
     spec_inject_particles( spec, range );
+
+    // Density multiplier
+    spec -> q *= fabsf( spec -> density.n );
+    if ( spec -> density.type == SPARSE || spec -> density.type == SPARSE_RANDOM) {
+        spec -> q *= spec -> nx[0] * spec -> nx[1] / spec -> np;
+    }
 
     // Set default sorting frequency
     spec -> n_sort = 16;
@@ -1220,7 +1296,7 @@ void spec_rep_charge( const t_species *spec )
 
     char path[1024];
     snprintf(path, 1024, "CHARGE/%s", spec -> name );
-    zdf_save_grid( (void *) charge, zdf_float32, &info, &iter, path );	
+    zdf_save_grid( (void *) buf, zdf_float32, &info, &iter, path );	
 
     free( buf );
 }	

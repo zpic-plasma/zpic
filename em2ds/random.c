@@ -29,6 +29,18 @@ void set_rand_seed( uint32_t m_w_, uint32_t m_z_ )
 }
 
 /**
+ * @brief Returns the current seed for the pseudo random number generator
+ * 
+ * @param m_w_ Pointer to seed value w
+ * @param m_z_ Pointer to seed value z
+ */
+void get_rand_seed( uint32_t* m_w_, uint32_t* m_z_ )
+{
+	*m_w_ = m_w;
+	*m_z_ = m_z;
+}
+
+/**
  * @brief Returns a 32 bit pseudo random number using Marsaglia MWC algorithm
  * 
  * Follows George Marsaglia's post to Sci.Stat.Math on 1/12/99:
