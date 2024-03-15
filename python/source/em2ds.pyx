@@ -13,8 +13,8 @@ import sys
 
 cdef class Density:
 	"""Density(type='uniform', start=0.0, end=0.0, n=1.0,
-			   dirac_random=False, dirac_random_np=1, dirac_random_seed=0,
-			   dirac_dx=[1,1], dirac_range=[[0,-1], [0,-1]])
+			   sparse_dx=[0,0], sparse_random_np=1, 
+			   sparse_random_seed=[12345, 67890])
 	
 	Class representing charge density profiles for particle species
 	initialization
@@ -23,31 +23,24 @@ cdef class Density:
 	----------
 	type : str, optional
 		Density profile type, one of "uniform", "empty", "step", "slab",
-		or "dirac", defaults to "uniform"
+		"sparse", "sparse_random", defaults to "uniform"
 	start : float, optional
-		Position of the plasma start position for "step" or "slab"
+		Position of the plasma start position for "step", "slab" or "sparse"
 		profiles, defaults to 0.0
 	end : float, optional
-		Position of the plasma end position for the "slab" profiles,
-		defaults to 0.0
+		Position of the plasma end position for the "slab" or "sparse"
+		profiles, defaults to 0.0
 	n : float, optional
 		Reference density to use, multiplies density profile value,
 		defaults to 1.0
-	dirac_random : bool, optional
-		If True, "dirac" will randomly place particles, 
-		defaults to False
-	dirac_random_np : int, optional
-		Number of particles to place for random "dirac",
-		defaults to 1
-	dirac_random_seed: int, optional
-		Seed used to chose particle positions for random "dirac",
-		defaults to 0
-	dirac_dx: list of int, optional
-		Spacing between consecutive particles [nx,ny] for deterministic 
-		"dirac", defaults to [1,1]
-	dirac_range: list of list of ints
-		Grid points range in which to place particles for deterministic 
-		"dirac", defaults to [[0,-1], [0,-1]]
+	sparse_dx: float, optional
+		Spacing between consecutive particles for "sparse" profile, 
+		defaults to 0.0
+	sparse_random_np : int, optional
+		Number of particles to place for "sparse_random", defaults to 1
+	sparse_random_seed: int, optional
+		Seed used to chose particle positions for random "sparse",
+		defaults to [12345, 67890] (values must be != 0)
 	
 	See Also
 	--------
@@ -59,12 +52,12 @@ cdef class Density:
 					  'empty':EMPTY,
 	                  'step':STEP,
 	                  'slab':SLAB,
-					  'dirac': DIRAC}
+					  'sparse': SPARSE,
+					  'sparse_random': SPARSE_RANDOM}
 
 	def __cinit__( self, *, str type = 'uniform', float start = 0.0, float end = 0.0,
-		           float n = 1.0, 
-				   bint dirac_random = False, int dirac_random_np = 1, int dirac_random_seed = 0,
-				   list dirac_dx = [1,1], list dirac_range = [[0,-1], [0,-1]] ):
+		           float n = 1.0, float sparse_dx = 0.0, int sparse_random_np = 1, 
+				   list sparse_random_seed = [12345, 67890] ):
 		# Allocates the structure and initializes all elements to 0
 		self._thisptr = <t_density *> calloc(1, sizeof(t_density))
 
@@ -73,13 +66,11 @@ cdef class Density:
 		self._thisptr.start = start
 		self._thisptr.end = end
 		
-		if type == 'dirac':
-			self._thisptr.dirac_random = dirac_random
-			self._thisptr.dirac_random_np = dirac_random_np
-			self._thisptr.dirac_random_seed = dirac_random_seed
-			self._thisptr.dirac_dx = dirac_dx
-			self._thisptr.dirac_range = dirac_range
-
+		if type == 'sparse':
+			self._thisptr.sparse_dx = sparse_dx
+		elif type == 'sparse_random':
+			self._thisptr.sparse_random_np = sparse_random_np
+			self._thisptr.sparse_random_seed = sparse_random_seed
 
 	def __dealloc__(self):
 		free( self._thisptr )
@@ -94,11 +85,9 @@ cdef class Density:
 		new.type  = self.type
 		new.start = self.start
 		new.end   = self.end
-		new._thisptr.dirac_random = self._thisptr.dirac_random
-		new._thisptr.dirac_random_np = self._thisptr.dirac_random_np
-		new._thisptr.dirac_random_seed = self._thisptr.dirac_random_seed
-		new._thisptr.dirac_dx = self._thisptr.dirac_dx
-		new._thisptr.dirac_range = self._thisptr.dirac_range
+		new._thisptr.sparse_dx = self._thisptr.sparse_dx
+		new._thisptr.sparse_random_np = self._thisptr.sparse_random_np
+		new._thisptr.sparse_random_seed = self._thisptr.sparse_random_seed
 		return new
 
 	@property
@@ -122,10 +111,11 @@ cdef class Density:
 
 		Returns
 		-------
-		type : {'uniform', 'empty', 'step', 'slab', 'dirac'}
+		type : {'uniform', 'empty', 'step', 'slab', 'sparse', 'spare_random'}
 			Density profile type
 		"""
-		tmp = {UNIFORM:'uniform', EMPTY:'empty', STEP:'step', SLAB:'slab', DIRAC: 'dirac'}
+		tmp = {UNIFORM:'uniform', EMPTY:'empty', STEP:'step', SLAB:'slab', 
+			SPARSE: 'sparse', SPARSE_RANDOM: 'sparse_random'}
 		return tmp[self._thisptr.type]
 
 	@type.setter
@@ -320,7 +310,7 @@ cdef class Species:
 		                   dtype = np.float32 )
 		cdef float [:,:] buf = charge
 		spec_deposit_charge( self._thisptr, &buf[0,0] )
-		
+
 		# Throw away guard cells
 		return charge[ 0 : self._thisptr.nx[1], 0 : self._thisptr.nx[0] ]
 

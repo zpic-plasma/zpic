@@ -100,19 +100,17 @@ cdef extern from "../../em2ds/particles.h":
 		float uz
 
 	cdef enum density_type:
-		UNIFORM, EMPTY, STEP, SLAB, DIRAC
+		UNIFORM, EMPTY, STEP, SLAB, SPARSE, SPARSE_RANDOM
 
 	ctypedef struct t_density:
 		float n
 		density_type type
 		float start
 		float end
-		bint dirac_random
-		int dirac_random_np
-		int dirac_random_seed
-		int dirac_dx[2]
-		int dirac_range[2][2]
-
+		float sparse_dx
+		int sparse_random_np
+		unsigned int[2] sparse_random_seed
+		
 	ctypedef struct t_species:
 		char name[MAX_SPNAME_LEN]
 		t_part *part

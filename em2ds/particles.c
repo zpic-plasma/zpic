@@ -88,69 +88,57 @@ float one( float x, void *data ) {
  */
 void spec_set_u( t_species* spec, const int start, const int end )
 {
-    // Dirac is special case since we have 1 ppc
-    if ( spec -> density.type == DIRAC ){
-        // Thermal + fluid components
-        for (int i = start; i <= end; i++) {
-            spec->part[i].ux = spec -> ufl[0] + spec -> uth[0] * rand_norm(); 
-            spec->part[i].uy = spec -> ufl[1] + spec -> uth[1] * rand_norm(); 
-            spec->part[i].uz = spec -> ufl[2] + spec -> uth[2] * rand_norm(); 
-        }
+    // Initialize thermal component
+    for (int i = start; i <= end; i++) {
+        spec->part[i].ux = spec -> uth[0] * rand_norm(); 
+        spec->part[i].uy = spec -> uth[1] * rand_norm(); 
+        spec->part[i].uz = spec -> uth[2] * rand_norm(); 
     }
 
-    else{
-        // Initialize thermal component
-        for (int i = start; i <= end; i++) {
-            spec->part[i].ux = spec -> uth[0] * rand_norm(); 
-            spec->part[i].uy = spec -> uth[1] * rand_norm(); 
-            spec->part[i].uz = spec -> uth[2] * rand_norm(); 
-        }
+    // Calculate net momentum in each cell
+    const int size = spec->nx[0] * spec->nx[1];
+    const int stride = spec->nx[1];
 
-        // Calculate net momentum in each cell
-        const int size = spec->nx[0] * spec->nx[1];
-        const int stride = spec->nx[1];
+    float3 * restrict net_u = (float3 *) malloc( size * sizeof(float3));
+    int * restrict    npc   = (int *) malloc( size * sizeof(int));
 
-        float3 * restrict net_u = (float3 *) malloc( size * sizeof(float3));
-        int * restrict    npc   = (int *) malloc( size * sizeof(int));
+    // Zero momentum grids
+    memset(net_u, 0, size * sizeof(float3) );
+    memset(npc, 0, size * sizeof(int) );
 
-        // Zero momentum grids
-        memset(net_u, 0, size * sizeof(float3) );
-        memset(npc, 0, size * sizeof(int) );
+    // Accumulate momentum in each cell
+    for (int i = start; i <= end; i++) {
+        const int idx  = spec -> part[i].ix + stride * spec -> part[i].iy ;
 
-        // Accumulate momentum in each cell
-        for (int i = start; i <= end; i++) {
-            const int idx  = spec -> part[i].ix + stride * spec -> part[i].iy ;
+        net_u[ idx ].x += spec->part[i].ux;
+        net_u[ idx ].y += spec->part[i].uy;
+        net_u[ idx ].z += spec->part[i].uz;
 
-            net_u[ idx ].x += spec->part[i].ux;
-            net_u[ idx ].y += spec->part[i].uy;
-            net_u[ idx ].z += spec->part[i].uz;
-
-            npc[ idx ] += 1;
-        }
-
-        // Normalize to the number of particles in each cell to get the
-        // average momentum in each cell
-        for(int i =0; i< size; i++ ) {
-            const float norm = (npc[ i ] > 0) ? 1.0f/npc[i] : 0;
-
-            net_u[ i ].x *= norm;
-            net_u[ i ].y *= norm;
-            net_u[ i ].z *= norm;
-        }
-
-        // Subtract average momentum and add fluid component
-        for (int i = start; i <= end; i++) {
-            const int idx  = spec -> part[i].ix + stride * spec -> part[i].iy ;
-
-            spec->part[i].ux += spec -> ufl[0] - net_u[ idx ].x;
-            spec->part[i].uy += spec -> ufl[1] - net_u[ idx ].y;
-            spec->part[i].uz += spec -> ufl[2] - net_u[ idx ].z;
-        }
-
-        // Free temporary memory
-        free( npc );
-        free( net_u );
+        npc[ idx ] += 1;
     }
+
+    // Normalize to the number of particles in each cell to get the
+    // average momentum in each cell
+    for(int i =0; i< size; i++ ) {
+        const float norm = (npc[ i ] > 1) ? 1.0f/npc[i] : 0;
+
+        net_u[ i ].x *= norm;
+        net_u[ i ].y *= norm;
+        net_u[ i ].z *= norm;
+    }
+
+    // Subtract average momentum and add fluid component
+    for (int i = start; i <= end; i++) {
+        const int idx  = spec -> part[i].ix + stride * spec -> part[i].iy ;
+
+        spec->part[i].ux += spec -> ufl[0] - net_u[ idx ].x;
+        spec->part[i].uy += spec -> ufl[1] - net_u[ idx ].y;
+        spec->part[i].uz += spec -> ufl[2] - net_u[ idx ].z;
+    }
+
+    // Free temporary memory
+    free( npc );
+    free( net_u );
 
 }
 
@@ -229,86 +217,73 @@ void spec_set_x( t_species* spec, const int range[][2] )
         }
         break;
 
-    case DIRAC: // Dirac deltas density profile (ignores ppc)
+    case SPARSE: // Sparse density profile
+
+        if ( spec -> density.sparse_dx <= 0 ) {
+            fprintf(stderr, "(*error*) For sparse density profile set sparse_dx > 0\n");
+            exit(-1);
+        } 
         
-        // Random positions
-        if (spec -> density.dirac_random){
-            
-            int nx = range[0][1] - range[0][0];
-            int ny = range[1][1] - range[1][0];
+        // Injection range, in simulation units
+        start = (spec -> density.start > 0) ? spec -> density.start : 0;
+        end = (spec -> density.end < spec -> box[1]) ? spec -> density.end : spec -> box[1];
 
-            // Can not have more particles than grid points
-            if ( nx * ny < spec -> density.dirac_random_np ){
-                fprintf(stderr,"(*error*) For Dirac random profiles set np <= grid points.");
-                exit(-1);
+        float x, y;
+
+        // Inject equally spaced particles
+        for (y = 0; y < spec -> box[1]; y += spec -> density.sparse_dx) {
+            for (x = start; x < end; x += spec -> density.sparse_dx) {
+                // Grid cell index                
+                int ix = x / spec -> dx[0];
+                int iy = y / spec -> dx[1];
+                
+                // Position inside grid cell, cell size units
+                float posx = x / spec -> dx[0] - ix - 0.5;
+                float posy = y / spec -> dx[1] - iy - 0.5;
+
+                spec->part[ip].ix = ix;
+                spec->part[ip].iy = iy;
+                spec->part[ip].x = posx;
+                spec->part[ip].y = posy;
+                ip++;
             }
-            
-            // Create 1D list of cell indices 
-            int* ixy = malloc( nx * ny * sizeof( int ) );
-            for (j = range[1][0]; j <= range[1][1]; j++){
-                for (i = range[0][0]; i <= range[0][1]; i++){
-                    ixy[i + nx*j] = i + nx*j;
-                }
-            }
+        }
+        break;
 
-            // Set random seed to user defined value
-            srand(spec -> density.dirac_random_seed);
+    case SPARSE_RANDOM: // Sparse random density profile
+        {
+            // Get current random seed
+            uint32_t m_w_, m_z_;
+            get_rand_seed( &m_w_, &m_z_ );
 
-            // Shuffle indices
-            for (i = nx * ny - 1; i > 0; i--) {
-                // Generate a random index between 0 and i
-                int j = rand() % (i + 1);
-                // Swap (i, j) pair
-                int temp = ixy[i];
-                ixy[i] = ixy[j];
-                ixy[j] = temp;
-            }
+            // Override random seed with user defined value;
+            set_rand_seed( spec -> density.sparse_random_seed[0], 
+                spec -> density.sparse_random_seed[1] );
 
-            // Pick first N indices
-            for (i = 0; i < spec -> density.dirac_random_np; i++){
-                spec->part[ip].ix = ixy[i] % nx;
-                spec->part[ip].iy = ixy[i] / nx;
-                spec->part[ip].x = 0;
-                spec->part[ip].y = 0;
+            // Inject particles at random positions
+            for (i = 0; i < spec -> density.sparse_random_np; i++) {
+
+                float x = rand_uint32() / 4294967295.0 * spec -> box[0];
+                float y = rand_uint32() / 4294967295.0 * spec -> box[1];
+
+                // Grid cell index                
+                int ix = x / spec -> dx[0];
+                int iy = y / spec -> dx[1];
+                
+                // Position inside grid cell
+                float posx = x / spec -> dx[0] - ix - 0.5;
+                float posy = y / spec -> dx[1] - iy - 0.5;
+
+                spec->part[ip].ix = ix;
+                spec->part[ip].iy = iy;
+                spec->part[ip].x = posx;
+                spec->part[ip].y = posy;
                 ip++;
             }
 
-            free(ixy);
-        }
-
-        // Equally spaced positions
-        else{
-            if (( spec -> density.dirac_dx[0] < 1 ) || ( spec -> density.dirac_dx[1] < 1 )) {
-                fprintf(stderr,"(*error*) For Dirac profiles only dx > 1 is supported.");
-                exit(-1);
-            }
-            
-            // Define grid range in which particles will be injected
-            int imin = range[0][0];
-            int imax = range[0][1];
-            int jmin = range[1][0];
-            int jmax = range[1][1];
-
-            if ( spec -> density.dirac_range[0][0] )
-                imin = spec -> density.dirac_range[0][0];
-            if ( spec -> density.dirac_range[0][1] != -1 )
-                imax = spec -> density.dirac_range[0][1];
-            if ( spec -> density.dirac_range[1][0] )
-                jmin = spec -> density.dirac_range[1][0];
-            if ( spec -> density.dirac_range[1][1] != -1 )
-                jmax = spec -> density.dirac_range[1][1];
-
-            // Inject particles
-            for (j = jmin; j <= jmax; j += spec -> density.dirac_dx[1]){
-                for (i = imin; i <= imax; i += spec -> density.dirac_dx[0]){
-                    spec->part[ip].ix = i;
-                    spec->part[ip].iy = j;
-                    spec->part[ip].x = 0;
-                    spec->part[ip].y = 0;
-                    ip++;
-                }
-            }
-        }
+            // Reset random seed to original value
+            set_rand_seed( m_w_, m_z_ );
+        }   
         break;
         
 
@@ -485,20 +460,21 @@ int spec_np_inj( t_species* spec, const int range[][2] )
         }
         break;
 
-    case DIRAC: // dirac delta density profile
+    case SPARSE: // Sparse density profile
         {
-            if (spec -> density.dirac_random){
-                np_inj = spec -> density.dirac_random_np;
-            }
-            else{
-                int npx = range[0][1] - range[0][0] + 1;
-                int npy = range[1][1] - range[1][0] + 1;
-
-                np_inj = npx * npy;
-            }
-        }
+            float dx = spec -> density.sparse_dx;
+            int npx = ( spec -> density.end - spec -> density.start ) / dx + 1;
+            int npy = spec -> box[1] / dx + 1;
+            np_inj = npx * npy;
+        } 
         break;
 
+    case SPARSE_RANDOM: // Sparse random density profile
+        {
+            np_inj = spec -> density.sparse_random_np;    
+        }
+        break;
+        
     case CUSTOM: // custom density profile
         {
             // Integrate total charge along x
@@ -574,10 +550,10 @@ void spec_grow_buffer( t_species* spec, const int size ) {
 void spec_inject_particles( t_species* spec, const int range[][2] )
 {
     int start = spec -> np;
-
+    
     // Get maximum number of particles to inject
     int np_inj = spec_np_inj( spec, range );
-
+    
     // Check if buffer is large enough and if not reallocate
     spec_grow_buffer( spec, spec -> np + np_inj );
 
@@ -646,9 +622,6 @@ void spec_new( t_species* spec, char name[], const float m_q, const int ppc[],
         spec -> density = (t_density) { .type = UNIFORM, .n = 1.0 };
     }
 
-    // Density multiplier
-    spec ->q *= fabsf( spec -> density.n );
-
     // Initialize temperature profile
     if ( ufl ) {
         for(i=0; i<3; i++) spec -> ufl[i] = ufl[i];
@@ -672,6 +645,12 @@ void spec_new( t_species* spec, char name[], const float m_q, const int ppc[],
                             {0, nx[1]-1}};
 
     spec_inject_particles( spec, range );
+
+    // Density multiplier
+    spec -> q *= fabsf( spec -> density.n );
+    if ( spec -> density.type == SPARSE || spec -> density.type == SPARSE_RANDOM) {
+        spec -> q *= spec -> nx[0] * spec -> nx[1] / spec -> np;
+    }
 
     // Set default sorting frequency
     spec -> n_sort = 16;
