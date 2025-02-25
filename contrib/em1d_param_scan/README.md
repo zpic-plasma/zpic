@@ -1,4 +1,4 @@
-#EM1D - Parameter Scan
+# EM1D - Parameter Scan
 
 This is a modification of the EM1D code that implements a parameter scan. The code will run a simulation multiple times, varying the required parameter(s), and storing the results on different directories for later processing.
 

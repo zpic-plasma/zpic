@@ -32,7 +32,7 @@ void spec_sort( t_species *spec );
  *********************************************************************************************/
 
 
-double spec_time()
+double spec_time( void )
 {
 	return _spec_time;
 }

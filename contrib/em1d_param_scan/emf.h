@@ -12,24 +12,23 @@
 
 
 #include "zpic.h"
-#include "grid.h"
+
 #include "current.h"
-#include "charge.h"
 
 enum emf_diag { EFLD, BFLD };
+enum emf_boundary { EMF_BC_NONE, EMF_BC_PERIODIC, EMF_BC_OPEN };
 
 typedef struct {
 	
-	// E and B fields
-	t_vfld_grid E;
-	t_vfld_grid B;
-
-	// Fourier transform of El, Et and B
-	t_cvfld_grid fEl;
-	t_cvfld_grid fEt;
-	t_cvfld_grid fB;
-		
+	t_vfld *E;
+	t_vfld *B;
+	
+	t_vfld *E_buf;
+	t_vfld *B_buf;
+	
 	// Simulation box info
+	int nx;
+	int gc[2];
 	t_fld box;
 	t_fld dx;
 
@@ -39,8 +38,13 @@ typedef struct {
 	// Iteration number
 	int iter;
 
-	// FFT configuration
-	t_fftr_cfg *fft;
+	// Moving window
+	int moving_window;
+	int n_move;
+
+	// Boundary conditions
+	int bc_type;
+	t_vfld mur_fld[2], mur_tmp[2];
 	
 } t_emf;
 
@@ -49,7 +53,9 @@ typedef struct {
 typedef struct {
 	
 	float start;	// Front edge of the laser pulse, in simulation units
+
 	float fwhm;		// FWHM of the laser pulse duration, in simulation units
+	float rise, flat, fall; // Rise, flat and fall time of the laser pulse, in simulation units 
 	
 	float a0;		// Normalized peak vector potential of the pulse
 	float omega0;	// Laser frequency, normalized to the plasma frequency
@@ -58,23 +64,22 @@ typedef struct {
 		
 } t_emf_laser;
 	
-
 void emf_get_energy( const t_emf *emf, double energy[] );
 
-void emf_new( t_emf *emf, int nx, t_fld box, const float dt, t_fftr_cfg *fft );
-
+void emf_new( t_emf *emf, int nx, t_fld box, const float dt );
 void emf_delete( t_emf *emf );
-
 void emf_report( const t_emf *emf, const char field, const char fc );
 
-void emf_add_laser( t_emf* const emf, const t_emf_laser* const laser );
+void emf_add_laser( t_emf* const emf, t_emf_laser* laser );
 
-void emf_advance( t_emf *emf, const t_charge *charge, const t_current *current );
+void emf_advance( t_emf *emf, const t_current *current );
 
 void emf_move_window( t_emf *emf );
 
 void emf_update_gc( t_emf *emf );
 
-double emf_time();
+double emf_time( void );
+
+void emf_set_moving_window( t_emf* emf );
 
 #endif

@@ -13,7 +13,6 @@
 #include "zpic.h"
 #include "emf.h"
 #include "current.h"
-#include "charge.h"
 
 #define MAX_SPNAME_LEN 32
 
@@ -41,6 +40,7 @@ typedef struct {
 
 } t_density;
 
+enum part_boundary { PART_BC_NONE, PART_BC_PERIODIC, PART_BC_OPEN };
 
 typedef struct {
 	
@@ -53,12 +53,12 @@ typedef struct {
 
 	// mass over charge ratio
 	float m_q;
-	
-	// charge of individual particle
-	float q;
 
 	// total kinetic energy
 	double energy;
+	
+	// charge of individual particle
+	float q;
 	
 	// Number of particles per cell
 	int ppc;
@@ -80,6 +80,13 @@ typedef struct {
 
 	// Iteration number
 	int iter;
+
+	// Moving window
+	int moving_window;
+	int n_move;
+
+	// Boundary conditions
+	int bc_type;
 	
 } t_species;
 
@@ -87,13 +94,13 @@ void spec_new( t_species* spec, char name[], const float m_q, const int ppc,
 			  const float ufl[], const float uth[],
 			  const int nx, float box, const float dt, t_density* density );
 
+void spec_move_window( t_species *spec );
+
 void spec_delete( t_species* spec );
 
-void spec_advance( t_species* spec, t_emf* emf, t_charge* charge, t_current* current );
+void spec_advance( t_species* spec, t_emf* emf, t_current* current );
 
-void spec_deposit_charge( const t_species* spec, float* charge );
-
-double spec_time();
+double spec_time( void );
 
 /*********************************************************************************************
  

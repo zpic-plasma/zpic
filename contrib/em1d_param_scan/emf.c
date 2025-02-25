@@ -19,7 +19,7 @@
 
 static double _emf_time = 0.0;
 
-double emf_time()
+double emf_time( void )
 {
 	return _emf_time;
 }

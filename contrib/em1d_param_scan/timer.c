@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-uint64_t timer_ticks()
+uint64_t timer_ticks( void )
 {
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
@@ -24,7 +24,7 @@ double timer_interval_seconds(uint64_t start, uint64_t end)
 	return (end - start) * 1.0e-6;
 }
 
-double timer_cpu_seconds()
+double timer_cpu_seconds( void )
 {
     struct timeval tv;
     double wtime;
@@ -34,7 +34,7 @@ double timer_cpu_seconds()
     return wtime;
 }
 
-double timer_resolution()
+double timer_resolution( void )
 {
 	struct timeval tv1, tv2;
 	
