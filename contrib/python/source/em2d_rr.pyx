@@ -5,7 +5,7 @@ a finite-difference EM field solver
 """
 #cython: language_level=3
 
-cimport em2d
+cimport em2d_rr
 from libc.stdlib cimport calloc, free
 
 import numpy as np

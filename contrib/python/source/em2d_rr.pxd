@@ -2,10 +2,10 @@
 
 from libc.stdint cimport uint32_t
 
-cdef extern from "../../em2d/random.h":
+cdef extern from "../../em2d_rr/random.h":
 	void set_rand_seed( uint32_t m_z_, uint32_t m_w_ )
 
-cdef extern from "../../em2d/zpic.h":
+cdef extern from "../../em2d_rr/zpic.h":
 	ctypedef struct float3:
 		float x
 		float y
@@ -14,7 +14,7 @@ cdef extern from "../../em2d/zpic.h":
 #########################################################################################
 # Particles
 #
-cdef extern from "../../em2d/particles.h":
+cdef extern from "../../em2d_rr/particles.h":
 	cdef enum:
 		MAX_SPNAME_LEN
 
@@ -92,7 +92,7 @@ cdef extern from "../../em2d/particles.h":
 #########################################################################################
 # EMF
 #
-cdef extern from "../../em2d/emf.h":
+cdef extern from "../../em2d_rr/emf.h":
 
 	cdef enum emf_fld_type:
 		EMF_FLD_TYPE_NONE, EMF_FLD_TYPE_UNIFORM, EMF_FLD_TYPE_CUSTOM
@@ -167,7 +167,7 @@ cdef extern from "../../em2d/emf.h":
 # Current
 #
 
-cdef extern from "../../em2d/current.h":
+cdef extern from "../../em2d_rr/current.h":
 	cdef enum smooth_type:
 		NONE, BINOMIAL, COMPENSATED
 
@@ -197,7 +197,7 @@ cdef extern from "../../em2d/current.h":
 # Simulation
 #
 
-cdef extern from "../../em2d/simulation.h":
+cdef extern from "../../em2d_rr/simulation.h":
 	ctypedef struct t_simulation:
 		int moving_window
 		float dt

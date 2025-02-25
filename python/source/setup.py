@@ -92,20 +92,9 @@ em2ds = Extension("em2ds",
 				csource + "em2ds/zdf.c"]
 )
 
-em2d_rr = Extension("em2d_rr",
-                sources=["em2d_rr.pyx",
-                csource + "em2d_rr/current.c",
-				csource + "em2d_rr/emf.c",
-				csource + "em2d_rr/particles.c",
-				csource + "em2d_rr/random.c",
-				csource + "em2d_rr/simulation.c",
-				csource + "em2d_rr/timer.c",
-				csource + "em2d_rr/zdf.c"]
-)
-
 # Compile extensions
 setup(name="zpic",
-    ext_modules = cythonize([em1d, em2d, es1d, em1ds, em2ds, em2d_rr]), 
+    ext_modules = cythonize([em1d, em2d, es1d, em1ds, em2ds]), 
 	zip_safe=False,
     cmdclass={"build_ext": custom_build_ext}
 )

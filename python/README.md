@@ -7,7 +7,7 @@ This module allows you to use any of the ZPIC codes from a Python environment, i
 
 ## Dependencies
 
-The python interface was developed using Cython (0.29.x). The notebooks are based on Jupyter use NumPy and Matplotlib for data and visualization.
+The python interface was developed using Cython (3.0.x). The notebooks are based on Jupyter use NumPy and Matplotlib for data and visualization.
 
 ## Compilation
 
