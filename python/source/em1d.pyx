@@ -11,7 +11,7 @@ from libc.stdlib cimport calloc, free
 import numpy as np
 import sys
 
-cdef float custom_density( float x, void *f ):
+cdef float custom_density( float x, void *f ) noexcept:
 	"""Internal function for custom density profiles"""
 	cdef Density d = <object> f
 	return d.custom_func(x)
@@ -497,7 +497,7 @@ cdef class Species:
 		self._thisptr.bc_type = self._bc_types[value]
 
 
-cdef float3 custom_ext_E( int ix, float dx, void *f ):
+cdef float3 custom_ext_E( int ix, float dx, void *f ) noexcept:
 	"""Internal auxiliary function for using external E fields"""
 	cdef ExternalField ext = <object> f
 	val = ext.custom_func_E(ix,dx)
@@ -507,7 +507,7 @@ cdef float3 custom_ext_E( int ix, float dx, void *f ):
 	e.z = val[2]
 	return e
 
-cdef float3 custom_ext_B( int ix, float dx, void *f ):
+cdef float3 custom_ext_B( int ix, float dx, void *f ) noexcept:
 	"""Internal auxiliary function for using external B fields"""
 	cdef ExternalField ext = <object> f
 	val = ext.custom_func_B(ix,dx)
@@ -706,7 +706,7 @@ cdef class ExternalField:
 		self._thisptr.B_custom_data = <void *> self
 
 
-cdef float3 custom_init_E( int ix, float dx, void *f ):
+cdef float3 custom_init_E( int ix, float dx, void *f ) noexcept:
 	"""Internal auxiliary function for using initial E fields"""
 	cdef InitialField init = <object> f
 	val = init.custom_func_E(ix,dx)
@@ -716,7 +716,7 @@ cdef float3 custom_init_E( int ix, float dx, void *f ):
 	e.z = val[2]
 	return e
 
-cdef float3 custom_init_B( int ix, float dx, void *f ):
+cdef float3 custom_init_B( int ix, float dx, void *f ) noexcept:
 	"""Internal auxiliary function for using initial E fields"""
 	cdef InitialField init = <object> f
 	val = init.custom_func_B(ix,dx)

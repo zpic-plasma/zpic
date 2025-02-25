@@ -10,7 +10,7 @@ from libc.stdlib cimport calloc, free
 import numpy as np
 import sys
 
-cdef float custom_density( float x, void *f ):
+cdef float custom_density( float x, void *f ) noexcept:
 	"""Internal function for custom density profiles"""
 	cdef Density d = <object> f
 	return d.custom_func(x)
