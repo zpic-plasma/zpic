@@ -29,7 +29,7 @@ static double _emf_time = 0.0;
  * 
  * @return      Time spent in seconds
  */
-double emf_time()
+double emf_time( void )
 {
     return _emf_time;
 }

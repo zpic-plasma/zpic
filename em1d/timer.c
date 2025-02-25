@@ -69,7 +69,7 @@ double timer_cpu_seconds( void )
  * 
  * @return Timer resolution 
  */
-double timer_resolution()
+double timer_resolution( void )
 {
 	struct timeval tv1, tv2;
 	gettimeofday(&tv1, NULL);

@@ -27,7 +27,7 @@ static double _field_time = 0.0;
  * 
  * @return      Time spent in seconds
  */
-double field_time()
+double field_time( void )
 {
 	return _field_time;
 }
