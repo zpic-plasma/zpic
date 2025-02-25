@@ -8,7 +8,6 @@ The directory structure is organized as follows:
 * [**em2d**](https://github.com/zambzamb/zpic/tree/master/em2d)  - 2D electromagnetic (finite difference)
 * [**em2ds**](https://github.com/zambzamb/zpic/tree/master/em2ds) - 2D electromagnetic (spectral)
 * [**es1d**](https://github.com/zambzamb/zpic/tree/master/es1d)  - 1D electrostatic
-* [**mods**](https://github.com/zambzamb/zpic/tree/master/mods)  - Modified versions of the base codes
 * [**python**](https://github.com/zambzamb/zpic/tree/master/python)  - Python interface to ZPIC codes
 
 ## Documentation
