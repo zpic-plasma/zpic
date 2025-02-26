@@ -4,6 +4,6 @@ set -ex
 # Compile ZPIC python extensions
 cd python && make
 
-jupyter contrib nbextension install --user
+# jupyter contrib nbextension install --user
 #jupyter nbextension enable --py widgetsnbextension
 #jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.38 --minimize=False
