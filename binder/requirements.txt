@@ -3,3 +3,4 @@ matplotlib==3.9.2
 cython==3.0.11
 ipywidgets==8.1.5
 ipympl==0.9.4
+jupyter_contrib_nbextensions
