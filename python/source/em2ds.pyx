@@ -12,7 +12,9 @@ import numpy as np
 import sys
 
 cdef class Density:
-	"""Density(type='uniform', start=0.0, end=0.0, n=1.0)
+	"""Density(type='uniform', start=0.0, end=0.0, n=1.0,
+			   sparse_dx=[0,0], sparse_random_np=1, 
+			   sparse_random_seed=[12345, 67890])
 	
 	Class representing charge density profiles for particle species
 	initialization
@@ -20,17 +22,25 @@ cdef class Density:
 	Parameters
 	----------
 	type : str, optional
-		Density profile type, one of "uniform", "empty", "step", "slab"
-		or "custom", defaults to "uniform"
+		Density profile type, one of "uniform", "empty", "step", "slab",
+		"sparse", "sparse_random", defaults to "uniform"
 	start : float, optional
-		Position of the plasma start position for "step" or "slab"
+		Position of the plasma start position for "step", "slab" or "sparse"
 		profiles, defaults to 0.0
 	end : float, optional
-		Position of the plasma end position for the "slab" profiles,
-		defaults to 0.0
+		Position of the plasma end position for the "slab" or "sparse"
+		profiles, defaults to 0.0
 	n : float, optional
 		Reference density to use, multiplies density profile value,
 		defaults to 1.0
+	sparse_dx: float, optional
+		Spacing between consecutive particles for "sparse" profile, 
+		defaults to 0.0
+	sparse_random_np : int, optional
+		Number of particles to place for "sparse_random", defaults to 1
+	sparse_random_seed: int, optional
+		Seed used to chose particle positions for random "sparse",
+		defaults to [12345, 67890] (values must be != 0)
 	
 	See Also
 	--------
@@ -41,11 +51,13 @@ cdef class Density:
 	_density_types = {'uniform':UNIFORM,
 					  'empty':EMPTY,
 	                  'step':STEP,
-	                  'slab':SLAB}
+	                  'slab':SLAB,
+					  'sparse': SPARSE,
+					  'sparse_random': SPARSE_RANDOM}
 
 	def __cinit__( self, *, str type = 'uniform', float start = 0.0, float end = 0.0,
-		           float n = 1.0):
-
+		           float n = 1.0, float sparse_dx = 0.0, int sparse_random_np = 1, 
+				   list sparse_random_seed = [12345, 67890] ):
 		# Allocates the structure and initializes all elements to 0
 		self._thisptr = <t_density *> calloc(1, sizeof(t_density))
 
@@ -53,6 +65,12 @@ cdef class Density:
 		self._thisptr.n = n
 		self._thisptr.start = start
 		self._thisptr.end = end
+		
+		if type == 'sparse':
+			self._thisptr.sparse_dx = sparse_dx
+		elif type == 'sparse_random':
+			self._thisptr.sparse_random_np = sparse_random_np
+			self._thisptr.sparse_random_seed = sparse_random_seed
 
 	def __dealloc__(self):
 		free( self._thisptr )
@@ -67,7 +85,9 @@ cdef class Density:
 		new.type  = self.type
 		new.start = self.start
 		new.end   = self.end
-
+		new._thisptr.sparse_dx = self._thisptr.sparse_dx
+		new._thisptr.sparse_random_np = self._thisptr.sparse_random_np
+		new._thisptr.sparse_random_seed = self._thisptr.sparse_random_seed
 		return new
 
 	@property
@@ -91,10 +111,11 @@ cdef class Density:
 
 		Returns
 		-------
-		type : {'uniform', 'empty', 'step', 'slab'}
+		type : {'uniform', 'empty', 'step', 'slab', 'sparse', 'spare_random'}
 			Density profile type
 		"""
-		tmp = {UNIFORM:'uniform', EMPTY:'empty', STEP:'step', SLAB:'slab'}
+		tmp = {UNIFORM:'uniform', EMPTY:'empty', STEP:'step', SLAB:'slab', 
+			SPARSE: 'sparse', SPARSE_RANDOM: 'sparse_random'}
 		return tmp[self._thisptr.type]
 
 	@type.setter
@@ -429,6 +450,10 @@ cdef class EMF:
 	# Diagnostic types
 	_diag_types = { 'E' : EFLD,	'B' : BFLD }
 
+	# Field solver types
+	_solver_types = {'PSTD' : EMF_SOLVER_PSTD,
+                     'PSATD': EMF_SOLVER_PSATD}
+
 	cdef associate( self, t_emf* ptr ):
 		self._thisptr = ptr
 
@@ -502,6 +527,25 @@ cdef class EMF:
 			Simulation box size
 		"""
 		return self._thisptr.box
+
+	@property
+	def solver_type(self):
+		"""Field solver algorithm used
+
+		Returns
+		-------
+		solver : 'PSTD', 'PSATD'
+			Field solver in use, either 'PSTD' (pseudo-spectral time
+			domain) or 'PSATD' (pseudo-spectral analytical time domain)
+		"""
+		for key, value in self._solver_types.items():
+			if ( value == self._thisptr.solver_type ):
+				return key
+		return 'unknown'
+
+	@solver_type.setter
+	def solver_type( self, str solver ):
+		self._thisptr.solver_type = self._solver_types[solver]
 
 	@property
 	def Ex( self ):

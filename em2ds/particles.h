@@ -42,11 +42,13 @@ typedef struct Particle {
  * 
  */
 enum density_type {
-	UNIFORM,	///< Uniform density
-	EMPTY,		///< No particles
-	STEP,		///< Step-like profile
-	SLAB,		///< Slab-like profile
-	CUSTOM		///< Defined from an external function
+	UNIFORM,        ///< Uniform density
+	EMPTY,          ///< No particles
+	STEP,		    ///< Step-like profile
+	SLAB,           ///< Slab-like profile
+    SPARSE,         ///< Equally spaced macro-particles
+    SPARSE_RANDOM,  ///< Randomly placed macro-particles
+	CUSTOM		    ///< Defined from an external function
 };
 
 /**
@@ -58,9 +60,18 @@ typedef struct Density {
 	float n;						///< reference density (defaults to 1.0, multiplies density profile)
 
 	enum density_type type;			///< Density profile type
-	float start;					///< Start position for step, slab and ramp profiles, in simulation units
-	float end;						///< End position for slab and ramp profiles, in simulation units
+	float start;					///< Start position for step, slab, ramp and sparse profiles, in simulation units
+	float end;						///< End position for slab, ramp and sparse profiles, in simulation units
 
+    // Sparse density profile parameters
+    
+    float sparse_dx;                ///< Distance between consecutive particles, in simulation units
+    
+    // Sparse Random density profile parameters
+
+    int sparse_random_np;           ///< Total number of particles 
+    uint32_t sparse_random_seed[2]; ///< Random seed used to pick particle positions
+    
     // Custom density profile parameters
     
     /// Pointer to custom density function along x
